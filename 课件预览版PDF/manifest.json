@@ -1,0 +1,428 @@
+[
+  {
+    "chapter": 1,
+    "title": "第一堂“云原生”课",
+    "pages": 20,
+    "expected_pages": 20,
+    "file": "01-第一堂“云原生”课.pdf",
+    "status": "ok",
+    "preview_pages": 20,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 2,
+    "title": "容器基本概念",
+    "pages": 20,
+    "expected_pages": 21,
+    "file": "02-容器基本概念.pdf",
+    "status": "partial",
+    "preview_pages": 20,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 3,
+    "title": "Kubernetes 核心概念",
+    "pages": 22,
+    "expected_pages": 25,
+    "file": "03-Kubernetes 核心概念.pdf",
+    "status": "partial",
+    "supplemental_files": [
+      {
+        "file": "公开课图文版课件补充集.pdf",
+        "pdf_pages": [
+          1,
+          1
+        ],
+        "source": "https://edu.aliyun.com/course/314164/lesson/341312172",
+        "note": "阿里云课程图文版中的章节配图；用于替换原PDF中的空白捕获页，未标作已核实的原始课件页码。",
+        "inserted_to_main_pdf": true,
+        "placement": "第3章替换原PDF第6页空白页；第8章替换原PDF第20–22页空白页并按补充图顺序放置；第27章第31–32页置于总结页之前。"
+      }
+    ],
+    "preview_pages": 22,
+    "original_pdf_backup": "原始预览备份\\03-Kubernetes 核心概念.pdf",
+    "placed_supplemental_pages": 1
+  },
+  {
+    "chapter": 4,
+    "title": "理解 Pod 和容器设计模式",
+    "pages": 21,
+    "expected_pages": 24,
+    "file": "04-理解 Pod 和容器设计模式.pdf",
+    "status": "partial",
+    "preview_pages": 21,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 5,
+    "title": "应用编排与管理：核心原理",
+    "pages": 21,
+    "expected_pages": 23,
+    "file": "05-应用编排与管理：核心原理.pdf",
+    "status": "partial",
+    "supplemental_files": [
+      {
+        "file": "公开课图文版课件补充集.pdf",
+        "pdf_pages": [
+          2,
+          2
+        ],
+        "source": "https://edu.aliyun.com/course/314164/lesson/341312528",
+        "note": "阿里云课程图文版中的相关配图；无可核实的原始课件页码或内部插入位置，保留在独立补充集中，避免错序或重复。",
+        "inserted_to_main_pdf": false
+      }
+    ],
+    "preview_pages": 21,
+    "original_pdf_backup": "原始预览备份\\05-应用编排与管理：核心原理.pdf"
+  },
+  {
+    "chapter": 6,
+    "title": "应用编排与管理： Deployment",
+    "pages": 21,
+    "expected_pages": 22,
+    "file": "06-应用编排与管理： Deployment.pdf",
+    "status": "partial",
+    "supplemental_files": [
+      {
+        "file": "公开课图文版课件补充集.pdf",
+        "pdf_pages": [
+          3,
+          4
+        ],
+        "source": "https://edu.aliyun.com/course/314164/lesson/341312679",
+        "note": "阿里云课程图文版中的相关配图；无可核实的原始课件页码或内部插入位置，保留在独立补充集中，避免错序或重复。",
+        "inserted_to_main_pdf": false
+      }
+    ],
+    "preview_pages": 21,
+    "original_pdf_backup": "原始预览备份\\06-应用编排与管理： Deployment.pdf"
+  },
+  {
+    "chapter": 7,
+    "title": "应用编排与管理：Job 和 DaemonSet",
+    "pages": 23,
+    "expected_pages": 28,
+    "file": "07-应用编排与管理：Job 和 DaemonSet.pdf",
+    "status": "partial",
+    "preview_pages": 23,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 8,
+    "title": "应用配置管理",
+    "pages": 23,
+    "expected_pages": 26,
+    "file": "08-应用配置管理.pdf",
+    "status": "partial",
+    "supplemental_files": [
+      {
+        "file": "公开课图文版课件补充集.pdf",
+        "pdf_pages": [
+          5,
+          8
+        ],
+        "source": "https://edu.aliyun.com/course/314164/lesson/341312974",
+        "note": "阿里云课程图文版中的章节配图；用于替换原PDF中的空白捕获页，未标作已核实的原始课件页码。",
+        "inserted_to_main_pdf": true,
+        "placement": "第3章替换原PDF第6页空白页；第8章替换原PDF第20–22页空白页并按补充图顺序放置；第27章第31–32页置于总结页之前。"
+      }
+    ],
+    "preview_pages": 22,
+    "original_pdf_backup": "原始预览备份\\08-应用配置管理.pdf",
+    "placed_supplemental_pages": 4
+  },
+  {
+    "chapter": 9,
+    "title": "应用存储和持久化数据卷：核心知识",
+    "pages": 22,
+    "expected_pages": 25,
+    "file": "09-应用存储和持久化数据卷：核心知识.pdf",
+    "status": "partial",
+    "preview_pages": 22,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 10,
+    "title": "应用存储和持久化数据卷：存储快照与拓扑调度",
+    "pages": 20,
+    "expected_pages": 20,
+    "file": "10-应用存储和持久化数据卷：存储快照与拓扑调度.pdf",
+    "status": "ok",
+    "preview_pages": 20,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 11,
+    "title": "可观测性：你的应用健康吗",
+    "pages": 18,
+    "expected_pages": 18,
+    "file": "11-可观测性：你的应用健康吗.pdf",
+    "status": "ok",
+    "preview_pages": 18,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 12,
+    "title": "可观测性：监控与日志",
+    "pages": 18,
+    "expected_pages": 18,
+    "file": "12-可观测性：监控与日志.pdf",
+    "status": "ok",
+    "preview_pages": 18,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 13,
+    "title": "Kubernetes网络概念及策略控制",
+    "pages": 17,
+    "expected_pages": 17,
+    "file": "13-Kubernetes网络概念及策略控制.pdf",
+    "status": "ok",
+    "preview_pages": 17,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 14,
+    "title": "Kubernetes Services",
+    "pages": 18,
+    "expected_pages": 18,
+    "file": "14-Kubernetes Services.pdf",
+    "status": "ok",
+    "preview_pages": 18,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 15,
+    "title": "深入剖析 Linux 容器",
+    "pages": 17,
+    "expected_pages": 17,
+    "file": "15-深入剖析 Linux 容器.pdf",
+    "status": "ok",
+    "preview_pages": 17,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 16,
+    "title": "深入理解 etcd - 基本原理解析",
+    "pages": 20,
+    "expected_pages": 20,
+    "file": "16-深入理解 etcd - 基本原理解析.pdf",
+    "status": "ok",
+    "preview_pages": 20,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 17,
+    "title": "深入理解etcd：etcd性能优化实践",
+    "pages": 14,
+    "expected_pages": 14,
+    "file": "17-深入理解etcd：etcd性能优化实践.pdf",
+    "status": "ok",
+    "preview_pages": 14,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 18,
+    "title": "Kubernetesdi调度和资源管理",
+    "pages": 22,
+    "expected_pages": 25,
+    "file": "18-Kubernetesdi调度和资源管理.pdf",
+    "status": "partial",
+    "supplemental_files": [
+      {
+        "file": "公开课图文版课件补充集.pdf",
+        "pdf_pages": [
+          9,
+          10
+        ],
+        "source": "https://edu.aliyun.com/course/314164/lesson/341314507",
+        "note": "阿里云课程图文版中的相关配图；无可核实的原始课件页码或内部插入位置，保留在独立补充集中，避免错序或重复。",
+        "inserted_to_main_pdf": false
+      }
+    ],
+    "preview_pages": 22,
+    "original_pdf_backup": "原始预览备份\\18-Kubernetesdi调度和资源管理.pdf"
+  },
+  {
+    "chapter": 19,
+    "title": "调度器的调度流程和算法介绍",
+    "pages": 21,
+    "expected_pages": 22,
+    "file": "19-调度器的调度流程和算法介绍.pdf",
+    "status": "partial",
+    "supplemental_files": [
+      {
+        "file": "公开课图文版课件补充集.pdf",
+        "pdf_pages": [
+          11,
+          11
+        ],
+        "source": "https://edu.aliyun.com/course/314164/lesson/341314616",
+        "note": "阿里云课程图文版中的相关配图；无可核实的原始课件页码或内部插入位置，保留在独立补充集中，避免错序或重复。",
+        "inserted_to_main_pdf": false
+      }
+    ],
+    "preview_pages": 21,
+    "original_pdf_backup": "原始预览备份\\19-调度器的调度流程和算法介绍.pdf"
+  },
+  {
+    "chapter": 20,
+    "title": "GPU管理和Device Plugin工作机制",
+    "pages": 22,
+    "expected_pages": 26,
+    "file": "20-GPU管理和Device Plugin工作机制.pdf",
+    "status": "partial",
+    "supplemental_files": [
+      {
+        "file": "公开课图文版课件补充集.pdf",
+        "pdf_pages": [
+          12,
+          19
+        ],
+        "source": "https://edu.aliyun.com/course/314164/lesson/341314751",
+        "note": "阿里云课程图文版中的相关配图；无可核实的原始课件页码或内部插入位置，保留在独立补充集中，避免错序或重复。",
+        "inserted_to_main_pdf": false
+      }
+    ],
+    "preview_pages": 22,
+    "original_pdf_backup": "原始预览备份\\20-GPU管理和Device Plugin工作机制.pdf"
+  },
+  {
+    "chapter": 21,
+    "title": "Kubernetes 存储架构及插件使用",
+    "pages": 23,
+    "expected_pages": 28,
+    "file": "21-Kubernetes 存储架构及插件使用.pdf",
+    "status": "partial",
+    "supplemental_files": [
+      {
+        "file": "公开课图文版课件补充集.pdf",
+        "pdf_pages": [
+          20,
+          20
+        ],
+        "source": "https://edu.aliyun.com/course/314164/lesson/341314871",
+        "note": "阿里云课程图文版中的相关配图；无可核实的原始课件页码或内部插入位置，保留在独立补充集中，避免错序或重复。",
+        "inserted_to_main_pdf": false
+      }
+    ],
+    "preview_pages": 23,
+    "original_pdf_backup": "原始预览备份\\21-Kubernetes 存储架构及插件使用.pdf"
+  },
+  {
+    "chapter": 22,
+    "title": "有状态应用编排：StatefulSet",
+    "pages": 21,
+    "expected_pages": 23,
+    "file": "22-有状态应用编排：StatefulSet.pdf",
+    "status": "partial",
+    "supplemental_files": [
+      {
+        "file": "公开课图文版课件补充集.pdf",
+        "pdf_pages": [
+          21,
+          26
+        ],
+        "source": "https://edu.aliyun.com/course/314164/lesson/341314987",
+        "note": "阿里云课程图文版中的相关配图；无可核实的原始课件页码或内部插入位置，保留在独立补充集中，避免错序或重复。",
+        "inserted_to_main_pdf": false
+      }
+    ],
+    "preview_pages": 21,
+    "original_pdf_backup": "原始预览备份\\22-有状态应用编排：StatefulSet.pdf"
+  },
+  {
+    "chapter": 23,
+    "title": "KubernetesAPI编程范式",
+    "pages": 14,
+    "expected_pages": 14,
+    "file": "23-KubernetesAPI编程范式.pdf",
+    "status": "ok",
+    "preview_pages": 14,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 24,
+    "title": "KubernetesAPI编程利器：Operator和OperatorFramework",
+    "pages": 20,
+    "expected_pages": 21,
+    "file": "24-KubernetesAPI编程利器：Operator和OperatorFramework.pdf",
+    "status": "partial",
+    "preview_pages": 20,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 25,
+    "title": "Kubernetes网络模型进阶",
+    "pages": 16,
+    "expected_pages": 16,
+    "file": "25-Kubernetes网络模型进阶.pdf",
+    "status": "ok",
+    "preview_pages": 16,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 26,
+    "title": "理解CNI和CNI插件",
+    "pages": 17,
+    "expected_pages": 17,
+    "file": "26-理解CNI和CNI插件.pdf",
+    "status": "ok",
+    "preview_pages": 17,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 27,
+    "title": "Kubernetes安全之访问控制",
+    "pages": 25,
+    "expected_pages": 34,
+    "file": "27-Kubernetes安全之访问控制.pdf",
+    "status": "partial",
+    "supplemental_files": [
+      {
+        "file": "27-Kubernetes安全之访问控制-官方公开课件补页31-32.pdf",
+        "verified_slide_numbers": [
+          31,
+          32
+        ],
+        "source": "https://developer.aliyun.com/article/750029",
+        "note": "阿里云公开文章中的完整课件图片；已核对页脚编号31、32，并插入原总结页之前。",
+        "inserted_to_main_pdf": true,
+        "placement": "第3章替换原PDF第6页空白页；第8章替换原PDF第20–22页空白页并按补充图顺序放置；第27章第31–32页置于总结页之前。"
+      }
+    ],
+    "preview_pages": 23,
+    "original_pdf_backup": "原始预览备份\\27-Kubernetes安全之访问控制.pdf",
+    "placed_supplemental_pages": 2
+  },
+  {
+    "chapter": 28,
+    "title": "理解容器运行时接口CRI",
+    "pages": 18,
+    "expected_pages": 18,
+    "file": "28-理解容器运行时接口CRI.pdf",
+    "status": "ok",
+    "preview_pages": 18,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 29,
+    "title": "安全容器技术",
+    "pages": 17,
+    "expected_pages": 17,
+    "file": "29-安全容器技术.pdf",
+    "status": "ok",
+    "preview_pages": 17,
+    "original_pdf_backup": null
+  },
+  {
+    "chapter": 30,
+    "title": "理解RuntimeClass与使用多容器运行时",
+    "pages": 21,
+    "expected_pages": 22,
+    "file": "30-理解RuntimeClass与使用多容器运行时.pdf",
+    "status": "partial",
+    "preview_pages": 21,
+    "original_pdf_backup": null
+  }
+]

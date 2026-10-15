@@ -1,0 +1,323 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>第21讲 文字版上</title><style>body{max-width:960px;margin:40px auto;padding:0 24px;font:17px/1.8 system-ui}img{max-width:100%;height:auto}pre{overflow:auto;background:#f4f4f4;padding:16px}table{border-collapse:collapse}td,th{border:1px solid #ddd;padding:8px}</style><body><h1>第21讲 文字版上</h1><p><a href="https://edu.aliyun.com/course/314164/lesson/341314864">课程原网页</a></p><p align="left"> </p>
+<p style="text-align:justify;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">本文将主要分享以下三方面的内容：</p>
+<p style="text-align:justify;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ol style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li style="text-align:justify;">Kubernetes 存储体系架构；</li>
+<li style="text-align:justify;">Flexvolume 介绍及使用；</li>
+<li style="text-align:justify;">CSI 介绍及使用。</li>
+</ol><p style="text-align:justify;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<h1 style="padding:7px 0px;margin:0px;font-weight:700;font-size:28px;line-height:36px;"><span class="lake-fontsize-18" style="font-size:24px;">一、</span>Kubernetes 存储体系架构</h1>
+<h2 style="padding:7px 0px;margin:0px;font-weight:700;font-size:24px;line-height:32px;">引例： 在 Kubernetes 中挂载一个 Volume</h2>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">首先以一个 Volume 的挂载例子来作为引入。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">如下图所示，左边的 YAML 模板定义了一个 StatefulSet 的一个应用，其中定义了一个名为 disk-pvc 的 volume，挂载到 Pod 内部的目录是 /data。disk-pvc 是一个 PVC 类型的数据卷，其中定义了一个 storageClassName。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">因此这个模板是一个典型的动态存储的模板。右图是数据卷挂载的过程，主要分为 6 步：</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/84ea352297a1c546a410.png" style="border:none;width:596px;height:335px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>第一步</strong>：用户创建一个包含 PVC的 Pod；</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>第二步</strong>：PV Controller 会不断观察 ApiServer，如果它发现一个 PVC 已经创建完毕但仍然是未绑定的状态，它就会试图把一个 PV 和 PVC 绑定；</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">PV Controller 首先会在集群内部找到一个适合的 PV 进行绑定，如果未找到相应的 PV，就调用 Volume Plugin 去做 Provision。Provision 就是从远端上一个具体的存储介质创建一个 Volume，并且在集群中创建一个 PV 对象，然后将此 PV 和 PVC 进行绑定；</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>第三步</strong>：通过 Scheduler 完成一个调度功能。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">我们知道，当一个 Pod 运行的时候，需要选择一个 Node，这个节点的选择就是由 Scheduler 来完成的。Scheduler 进行调度的时候会有多个参考量，比如 Pod 内部所定义的 nodeSelector、nodeAffinity 这些定义以及 Volume 中所定义的一些标签等。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">我们可以在数据卷中添加一些标准，这样使用这个 pv 的 Pod 就会由于标签的限制，被调度器调度到期望的节点上。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>第四步</strong>：如果有一个 Pod 调度到某个节点之后，它所定义的 PV 还没有被挂载（Attach），此时 AD Controller 就会调用 VolumePlugin，把远端的 Volume 挂载到目标节点中的设备上（如：/dev/vdb）；</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>第五步：</strong>当 Volum Manager 发现一个 Pod 调度到自己的节点上并且 Volume 已经完成了挂载，它就会执行 mount 操作，将本地设备（也就是刚才得到的 /dev/vdb）挂载到 Pod 在节点上的一个子目录中。同时它也可能会做一些像格式化、是否挂载到 GlobalPath 等这样的附加操作。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>第六步</strong>就：绑定操作，就是将已经挂载到本地的 Volume 映射到容器中。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<h2 id="c4YKt" style="padding:7px 0px;margin:0px;font-weight:700;font-size:24px;line-height:32px;">Kubernetes 的存储架构</h2>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">接下来，我们一起看一下 Kubernetes 的存储架构。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/6b918fad09dea8531efe.png" style="border:none;width:583px;height:329px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>PV Controller</strong>: 负责 PV/PVC 的绑定、生命周期管理，并根据需求进行数据卷的 Provision/Delete 操作；</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>AD Controller</strong>： 负责存储设备的 Attach/Detach 操作，将设备挂载到目标节点；</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>Volume Manager</strong>： 管理卷的 Mount/Unmount 操作、卷设备的格式化以及挂载到一些公用目录上的操作；</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>Volume Plugins</strong>：它主要是对上面所有挂载功能的实现。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">PV Controller、AD Controller、Volume Manager 主要是进行操作的调用，而具体操作则是由 Volume Plugins 实现的。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>Scheduler</strong>： 实现对 Pod 的调度能力，会根据一些存储相关的的定义去做一些存储相关的调度。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">接下来，我们分别介绍上面这几部分的功能。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<h3 style="padding:7px 0px;margin:0px;font-weight:700;font-size:20px;line-height:28px;">PV Controller</h3>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">首先我们先来回顾一下几个基本概念：</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>Persistent Volume (PV)</strong>： 持久化存储卷，详细定义了预挂载存储空间的各项参数。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">例如，我们去挂载一个远端的 NAS 的时候，这个 NAS 的具体参数就要定义在 PV 中。一个 PV 是没有 NameSpace 限制的，它一般由 Admin 来创建与维护；</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>Persistent Volume Claim (PVC)</strong>：持久化存储声明。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">它是用户所使用的存储接口，对存储细节无感知，主要是定义一些基本存储的 Size、AccessMode 这些参数在里面，并且它是属于某个 NameSpace 内部的。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>StorageClass</strong>：存储类。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">一个动态存储卷会按照 StorageClass 所定义的模板来创建一个 PV，其中定义了创建模板所需要的一些参数和创建 PV 的一个 Provisioner（就是由谁去创建的）。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">PV Controller 的主要任务就是完成 PV、PVC 的生命周期管理，比如创建、删除 PV 对象，负责 PV、PVC 的状态迁移；另一个任务就是绑定 PVC 与 PV 对象，一个 PVC 必须和一个 PV 绑定后才能被应用使用，它们是一一绑定的，一个 PV 只能被一个 PVC 绑定，反之亦然。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">接下来，我们看一下一个 PV 的状态迁移图。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/6e0dea97dba5d84672a7.png" style="border:none;width:514px;height:557px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">创建好一个 PV 以后，我们就处于一个 Available 的状态，当一个 PVC 和一个 PV 绑定的时候，这个 PV 就进入了 Bound 的状态，此时如果我们把 PVC 删掉，Bound 状态的 PV 就会进入 Released 的状态。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">一个 Released 状态的 PV 会根据自己定义的 ReclaimPolicy 字段来决定自己是进入一个 Available 的状态还是进入一个 Deleted 的状态。如果 ReclaimPolicy 定义的是 "recycle" 类型，它会进入一个 Available 状态，如果转变失败，就会进入 Failed 的状态。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">相对而言，PVC 的状态迁移图就比较简单。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/0b712f47d05a7915e75c.png" style="border:none;width:581px;height:632px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">一个创建好的 PVC 会处于 Pending 状态，当一个 PVC 与 PV 绑定之后，PVC 就会进入 Bound 的状态，当一个 Bound 状态的 PVC 的 PV 被删掉之后，该 PVC 就会进入一个 Lost 的状态。对于一个 Lost 状态的 PVC，它的 PV 如果又被重新创建，并且重新与该 PVC 绑定之后，该 PVC 就会重新回到 Bound 状态。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">下图是一个 PVC 去绑定 PV 时对 PV 筛选的一个流程图。就是说一个 PVC 去绑定一个 PV 的时候，应该选择一个什么样的 PV 进行绑定。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/bb2fa7e8a2f749e4b0b2.png" style="border:none;width:517px;height:280px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>首先</strong>它会检查 VolumeMode 这个标签，PV 与 PVC 的 VolumeMode 标签必须相匹配。VolumeMode 主要定义的是我们这个数据卷是文件系统 (FileSystem) 类型还是一个块 (Block) 类型；</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>第二个部分</strong>是 LabelSelector。当 PVC 中定义了 LabelSelector 之后，我们就会选择那些有 Label 并且与 PVC 的 LabelSelector 相匹配的 PV 进行绑定； </li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>第三个部分</strong>是 StorageClassName 的检查。如果 PVC 中定义了一个 StorageClassName，则必须有此相同类名的 PV 才可以被筛选中。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">这里再具体解释一下 StorageClassName 这个标签，该标签的目的就是说，当一个 PVC 找不到相应的 PV 时，我们就会用该标签所指定的 StorageClass 去做一个动态创建 PV 的操作，同时它也是一个绑定条件，当存在一个满足该条件的 PV 时，就会直接使用现有的 PV，而不再去动态创建。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>第四个部分</strong>是 AccessMode 检查。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">AccessMode 就是平时我们在 PVC 中定义的如 "ReadWriteOnce"、"RearWriteMany" 这样的标签。该绑定条件就是要求 PVC 和 PV 必须有匹配的 AccessMode，即 PVC 所需求的 AccessMode 类型，PV 必须具有。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>最后</strong>一个部分是 Size 的检查。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">一个 PVC 的 Size 必须小于等于 PV 的 Size，这是因为 PVC 是一个声明的 Volume，实际的 Volume 必须要大于等于声明的 Volume，才能进行绑定。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">接下来，我们看一个 PV Controller 的一个实现。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">PV Controller 中主要有两个实现逻辑：一个是 ClaimWorker；一个是 VolumeWorker。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">ClaimWorker 实现的是 PVC 的状态迁移。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/e3723eb1c8cb12a85e10.png" style="border:none;width:485px;height:262px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">通过系统标签 "pv.kubernetes.io/bind-completed" 来标识一个 PVC 的状态。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li>如果该标签为 True，说明我们的 PVC 已经绑定完成，此时我们只需要去同步一些内部的状态；</li>
+<li>如果该标签为 False，就说明我们的 PVC 处于未绑定状态，</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">这个时候就需要检查整个集群中的 PV 去进行筛选。通过 findBestMatch 就可以去筛选所有的 PV，也就是按照之前提到的五个绑定条件来进行筛选。如果筛选到 PV，就执行一个 Bound 操作，否则就去做一个 Provision 的操作，自己去创建一个 PV。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">再看 VolumeWorker 的操作。它实现的则是 PV 的状态迁移。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/1eb19bfa532c8696602c.png" style="border:none;width:591px;height:298px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">通过 PV 中的 ClaimRef 标签来进行判断，如果该标签为空，就说明该 PV 是一个 Available 的状态，此时只需要做一个同步就可以了；如果该标签非空，这个值是 PVC 的一个值，我们就会去集群中查找对应的 PVC，如果存在该 PVC，就说明该 PV 处于一个 Bound 的状态，此时会做一些相应的状态同步，如果找不到该 PVC，就说明该 PV 处于一个绑定过的状态，相应的 PVC 已经被删掉了，这时 PV 就处于一个 Released 的状态。此时再根据 ReclaimPolicy 是否是 Delete 来决定是删掉还是只做一些状态的同步。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">以上就是 PV Controller 的简要实现逻辑。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<h3 style="padding:7px 0px;margin:0px;font-weight:700;font-size:20px;line-height:28px;">AD Controller</h3>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">AD Controller 是 Attach/Detach Controller 的一个简称。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">它有两个核心对象，即 DesiredStateofWorld 和 ActualStateOfWorld。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li>DesiredStateofWorld 是集群中预期要达到的数据卷的挂载状态；</li>
+<li>ActualStateOfWorld 则是集群内部实际存在的数据卷挂载状态。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">它有两个核心逻辑，desiredStateOfWorldPopulator 和 Reconcile。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li>desiredStateOfWorldPopulator 主要是用来同步集群的一些数据以及 DSW、ASW 数据的更新，它会把集群里面，比如说我们创建一个新的 PVC、创建一个新的 Pod 的时候，我们会把这些数据的状态同步到 DSW 中；</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li>Reconcile 则会根据 DSW 和 ASW 对象的状态做状态同步。它会把 ASW 状态变成 DSW 状态，在这个状态的转变过程中，它会去执行 Attach、Detach 等操作。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">下面这个表分别给出了 desiredStateOfWorld 以及 actualStateOfWorld 对象的一个具体例子。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li>desiredStateOfWorld 会对每一个 Worker 进行定义，包括 Worker 所包含的 Volume 以及一些试图挂载的信息；</li>
+<li>actualStateOfWorl 会把所有的 Volume 进行一次定义，包括每一个 Volume 期望挂载到哪个节点上、挂载的状态是什么样子的等等。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/9d11ecb875ae99b3fa0d.png" style="border:none;width:618px;height:327px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">下图是 AD Controller 实现的逻辑框图。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">从中我们可以看到，AD Controller 中有很多 Informer，Informer 会把集群中的 Pod 状态、PV 状态、Node 状态、PVC 状态同步到本地。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">在初始化的时候会调用 populateDesireStateofWorld 以及 populateActualStateofWorld 将 desireStateofWorld、actualStateofWorld 两个对象进行初始化。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">在执行的时候，通过 desiredStateOfWorldPopulator 进行数据同步，即把集群中的数据状态同步到 desireStateofWorld 中。reconciler 则通过轮询的方式把 actualStateofWorld 和 desireStateofWorld 这两个对象进行数据同步，在同步的时候，会通过调用 Volume Plugin 进行 attach 和 detach 操作，同时它也会调用 nodeStatusUpdater 对 Node 的状态进行更新。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/652087fbe401931527b9.png" style="border:none;width:488px;height:453px;"/></span></p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">以上就是 AD Controller 的简要实现逻辑。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<h3 id="Tfptg" style="padding:7px 0px;margin:0px;font-weight:700;font-size:20px;line-height:28px;">Volume Manager</h3>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">Volume Manager 实际上是 Kubelet 中一部分，是 Kubelet 中众多 Manager 的一个。它主要是用来做本节点 Volume 的 Attach/Detach/Mount/Unmount 操作。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">它和 AD Controller 一样包含有 desireStateofWorld 以及 actualStateofWorld，同时还有一个 volumePluginManager 对象，主要进行节点上插件的管理。在核心逻辑上和 AD Controller 也类似，通过 desiredStateOfWorldPopulator 进行数据的同步以及通过 Reconciler 进行接口的调用。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">这里我们需要讲一下 Attach/Detach 这两个操作：</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">之前我们提到 AD Controller 也会做 Attach/Detach 操作，所以到底是由谁来做呢？我们可以通过 "--enable-controller-attach-detach" 标签进行定义，如果它为 True，则由 AD Controller 来控制；若为 False，就由 Volume Manager 来做。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">它是 Kubelet 的一个标签，只能定义某个节点的行为，所以如果假设一个有 10 个节点的集群，它有 5 个节点定义该标签为 False，说明这 5 个节点是由节点上的 Kubelet 来做挂载，而其它 5 个节点是由 AD Controller 来做挂载。 </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">下图是 Volume Manager 实现逻辑图。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/658f40cea2c9dc7e107d.png" style="border:none;width:531px;height:378px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">我们可以看到，最外层是一个循环，内部则是根据不同的对象，包括 desireStateofWorld， actualStateofWorld 的不同对象做一个轮询。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">例如，对 actualStateofWorld 中的 MountedVolumes 对象做轮询，对其中的某一个 Volume，如果它同时存在于 desireStateofWorld，这就说明实际的和期望的 Volume 均是处于挂载状态，因此我们不会做任何处理。如果它不存在于 desireStateofWorld，说明期望状态中该volume应该处于Umounted状态，就执行 UnmountVolume，将其状态转变为 desireStateofWorld 中相同的状态。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">所以我们可以看到：实际上，该过程就是根据 desireStateofWorld 和 actualStateofWorld 的对比，再调用底层的接口来执行相应的操作，下面的 desireStateofWorld.UnmountVolumes 和 actualStateofWorld.AttachedVolumes 的操作也是同样的道理。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<h3 id="vdnrb" style="padding:7px 0px;margin:0px;font-weight:700;font-size:20px;line-height:28px;">Volume Plugins</h3>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">我们之前提到的 PV Controller、AD Controller 以及 Volume Manager 其实都是通过调用 Volume Plugin 提供的接口，比如 Provision、Delete、Attach、Detach 等去做一些 PV、PVC 的管理。而这些接口的具体实现逻辑是放在 VolumePlugin 中的。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">根据源码的位置可将 Volume Plugins 分为 In-Tree 和 Out-of-Tree 两类：</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li>In-Tree 表示源码是放在 Kubernetes 内部的，和 Kubernetes 一起发布、管理与迭代，缺点及时迭代速度慢、灵活性差；</li>
+<li>Out-of-Tree 类的 Volume Plugins 的代码独立于 Kubernetes，它是由存储商提供实现的，目前主要有 Flexvolume 和 CSI 两种实现机制，可以根据存储类型实现不同的存储插件。所以我们比较推崇 Out-of-Tree 这种实现逻辑。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">从位置上我们可以看到，Volume Plugins 实际上就是 PV Controller、AD Controller 以及 Volume Manager 所调用的一个库，分为 In-Tree 和 Out-of-Tree 两类 Plugins。它通过这些实现来调用远端的存储，比如说挂载一个 NAS 的操作 "mount -t nfs ***"，该命令其实就是在 Volume Plugins 中实现的，它会去调用远程的一个存储挂载到本地。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/9e35a27f6183f0958117.png" style="border:none;width:504px;height:310px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">从类型上来看，Volume Plugins 可以分为很多种。In-Tree 中就包含了 几十种常见的存储实现，但一些公司的自己定义私有类型，有自己的 API 和参数，公共存储插件是无法支持的，这时就需要 Out-of-Tree 类的存储实现，比如 CSI、FlexVolume。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/a3bfc8d6d6e1baa6fba5.png" style="border:none;width:479px;height:325px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">Volume Plugins 的具体实现会放到后面去讲。这里主要看一下 Volume Plugins 的插件管理。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">Kubernetes会在 PV Controller、AD Controller 以及 Volume Manager 中来做插件管理。通过 VolumePlguinMg 对象进行管理。主要包含 Plugins 和 Prober 两个数据结构。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">Plugins 主要是用来保存 Plugins 列表的一个对象，而 Prober 是一个探针，用于发现新的 Plugin，比如 FlexVolume、CSI 是扩展的一种插件，它们是动态创建和生成的，所以一开始我们是无法预知的，因此需要一个探针来发现新的 Plugin。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">下图是插件管理的整个过程。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/1b57b91845dc16e5f790.png" style="border:none;width:671px;height:222px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">PV Controller、AD Controller 以及 Volume Manager 在启动的时候会执行一个 InitPlugins 方法来对 VolumePluginsMgr 做一些初始化。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">它首先会将所有 In-Tree 的 Plugins 加入到我们的插件列表中。同时会调用 Prober 的 init 方法，该方法会首先调用一个 InitWatcher，它会时刻观察着某一个目录 (比如图中的 /usr/libexec/kubernetes/kubelet-plugins/volume/exec/)，当这个目录每生成一个新文件的时候，也就是创建了一个新的 Plugins，此时就会生成一个新的 FsNotify.Create 事件，并将其加入到 EventsMap 中；同理，如果删除了一个文件，就生成一个 FsNotify.Remove 事件加入到 EventsMap 中。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">当上层调用 refreshProbedPlugins 时，Prober 就会把这些事件进行一个更新，如果是 Create，就将其添加到插件列表；如果是 Remove，就从插件列表中删除一个插件。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">以上就是 Volume Plugins 的插件管理机制。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<h3 id="wvhIp" style="padding:7px 0px;margin:0px;font-weight:700;font-size:20px;line-height:28px;">Kubernetes 存储卷调度</h3>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">我们之前说到 Pod 必须被调度到某个 Worker 上才能去运行。在调度 Pod 时，我们会使用不同的调度器来进行筛选，其中有一些与 Volume 相关的调度器。例如 VolumeZonePredicate、VolumeBindingPredicate、CSIMaxVolumLimitPredicate 等。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">VolumeZonePredicate 会检查 PV 中的 Label，比如 failure-domain.beta.kubernetes.io/zone 标签，如果该标签定义了 zone 的信息，VolumeZonePredicate 就会做相应的判断，即必须符合相应的 zone 的节点才能被调度。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">比如下图左侧的例子，定义了一个 label 的 zone 为 cn-shenzhen-a。右侧的 PV 则定义了一个 nodeAffinity，其中定义了 PV 所期望的节点的 Label，该 Label 是通过 VolumeBindingPredicate 进行筛选的。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/f7c5c0d70ed79ae0ec83.png" style="border:none;width:625px;height:248px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">存储卷具体调度信息的实现可以参考我们的第 10 讲，那里会有一个更加详细的介绍。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<h1 id="TlgL9" style="padding:7px 0px;margin:0px;font-weight:700;font-size:28px;line-height:36px;">二、Flexvolume 介绍及使用</h1>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">Flexvolume 是 Volume Plugins 的一个扩展，主要实现 Attach/Detach/Mount/Unmount 这些接口。我们知道这些功能本是由 Volume Plugins 实现的，但是对于某些存储类型，我们需要将其扩展到 Volume Plugins 以外，所以我们需要把接口的具体实现放到外面。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">在下图中我们可以看到，Volume Plugins 其实包含了一部分 Flexvolume 的实现代码，但这部分代码其实只有一个 “Proxy”的功能。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">比如当 AD Controller 调用插件的一个 Attach 时，它首先会调用 Volume Plugins 中 Flexvolume 的 Attach 接口，但这个接口只是把调用转到相应的 Flexvolume 的Out-Of-Tree实现上。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">Flexvolume是可被 Kubelet 驱动的可执行文件，每一次调用相当于执行一次 shell 的 ls 这样的脚本，都是可执行文件的命令行调用，因此它不是一个常驻内存的守护进程。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">Flexvolume 的 Stdout 作为 Kubelet 调用的返回结果，这个结果需要是 JSON 格式。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">Flexvolume默认的存放地址为 "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/alicloud~disk/disk"。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/4f8c88f5949b47bd7cd4.png" style="border:none;width:376px;height:491px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">下面是一个命令格式和调用的实例。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/8a73a0487284f1845cfc.png" style="border:none;width:645px;height:306px;"/></span></p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<h2 id="BEUCw" style="padding:7px 0px;margin:0px;font-weight:700;font-size:24px;line-height:32px;">Flexvolume 的接口介绍</h2>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">Flexvolum 包含以下接口：</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>init</strong>: 主要做一些初始化的操作，比如部署插件、更新插件的时候做 init 操作，返回的时候会返回刚才我们所说的 DriveCapabilities 类型的数据结构，用来说明我们的 Flexvolume 插件有哪些功能；</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>GetVolumeName</strong>： 返回插件名;</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>Attach</strong>: 挂载功能的实现。根据 --enable-controller-attach-detach 标签来决定是由 AD Controller 还是 Kubelet 来发起挂载操作;</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>WaitforAttach</strong>： Attach 经常是异步操作，因此需要等待挂载完成，才能需要进行下面的操作;</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li>MountDevice：它是 mount 的一部分。这里我们将 mount 分为 MountDevice 和 SetUp 两部分，MountDevice 主要做一些简单的预处理工作，比如将设备格式化、挂载到 GlobalMount 目录中等；</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>GetPath</strong>：获取每个 Pod 对应的本地挂载目录；</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>Setup</strong>：使用 Bind 方式将 GlobalPath 中的设备挂载到 Pod 的本地目录；</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>TearDown</strong>、<strong>UnmountDevice</strong>、<strong>Detach</strong> 实现的是上面一些借口的逆过程；</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>ExpandVolumeDevice</strong>：扩容存储卷，由 Expand Controller 发起调用；</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li><strong>NodeExpand</strong>： 扩容文件系统，由 Kubelet 发起调用。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">上面这些接口不一定需要全部实现，如果某个接口没有实现的话，可以将返回结果定义成：</p>
+<div id="CGeRt">
+<div class="lake-codeblock-content" style="border:1px solid rgb(232,232,232);max-width:750px;color:rgb(89,89,89);margin:0px;padding:0px;background:rgb(249,249,249);">
+<div style="margin:0px;padding:16px;background:rgba(0,0,0,0) none repeat scroll 0% 0%;">
+<pre class="cm-s-default" style="color:rgb(89,89,89);margin-bottom:0px;padding:0px;background:rgba(0,0,0,0) none repeat scroll 0% 0%;">
+<span class="lake-preview-line" style="margin:0px;padding:0px;background:rgba(0,0,0,0) none repeat scroll 0% 0%;"><span class="lake-preview-codeblock-content" style="margin:0px;padding:0px;background:rgba(0,0,0,0) none repeat scroll 0% 0%;">{
+</span></span><span class="lake-preview-line" style="margin:0px;padding:0px;background:rgba(0,0,0,0) none repeat scroll 0% 0%;"><span class="lake-preview-codeblock-content" style="margin:0px;padding:0px;background:rgba(0,0,0,0) none repeat scroll 0% 0%;">    "status": "Not supported",
+</span></span><span class="lake-preview-line" style="margin:0px;padding:0px;background:rgba(0,0,0,0) none repeat scroll 0% 0%;"><span class="lake-preview-codeblock-content" style="margin:0px;padding:0px;background:rgba(0,0,0,0) none repeat scroll 0% 0%;">    "message": "error message"
+</span></span><span class="lake-preview-line" style="margin:0px;padding:0px;background:rgba(0,0,0,0) none repeat scroll 0% 0%;"><span class="lake-preview-codeblock-content" style="margin:0px;padding:0px;background:rgba(0,0,0,0) none repeat scroll 0% 0%;">}</span></span></pre>
+</div>
+</div>
+</div>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">告诉调用者没有实现这个接口。此外，Volume Plugins 中的 Flexvolume 接口除了作为一个 Proxy 外，它也提供了一些默认实现，比如 Mount 操作。所以如果你的 Flexvolume 中没有定义该接口，该默认实现就会被调用。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">在定义 PV 时可以通过 secretRef 字段来定义一些 secret 的功能。比如挂载时所需的用户名和密码，就可以通过 secretRef 传入。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<h2 id="VqLkh" style="padding:7px 0px;margin:0px;font-weight:700;font-size:24px;line-height:32px;">Flexvolume 的挂载分析</h2>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">从挂载流程和卸载流程两个方向来分析 Flexvolume 的挂载过程。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/c84474b26d7a4d5f0b9b.png" style="border:none;width:460px;height:364px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">我们首先看 Attach 操作，它调用了一个远端的 API 把我们的 Storage 挂载到目标节点中的某个设备上去。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">然后通过 MountDevice 将本地设备挂载到 GlobalPath 中，同时也会做一些格式化这样的操作。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">Mount 操作（SetUp），它会把 GlobalPath 挂载 PodPath 中，PodPath 就是 Pod 启动时所映射的一个目录。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">下图给出了一个例子，比如我们一个云盘，其 Volume ID 为 d-8vb4fflsonz21h31cmss，在执行完 Attach 和 WaitForAttach 操作之后，就会将其挂载到目标节点上的 /dec/vdc 设备中。执行 MountDevice 之后，就会把上述设备格式化，挂载到一个本地的 GlobalPath 中。而执行完 Mount 之后，就会将 GlobalPath 映射到 Pod 相关的一个子目录中。最后执行 Bind 操作，将我们的本地目录映射到容器中。这样完成一次挂载过程。</p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/e127c00be183fa272aae.png" style="border:none;width:484px;height:368px;"/></span></p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">卸载流程就是一个逆过程。上述过程描述的是一个块设备的挂载过程，对于文件存储类型，就无需 Attach、MountDevice操作，只需要 Mount 操作，因此文件系统的 Flexvolume 实现较为简单，只需要 Mount 和 Unmount 过程即可。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<h2 id="yc91p" style="padding:7px 0px;margin:0px;font-weight:700;font-size:24px;line-height:32px;">Flexvolume 的代码示例</h2>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/1e4fbbb6332cb808a918.png" style="border:none;width:462px;height:240px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">其中主要实现的是 init()、doMount()、doUnmount() 方法。在执行该脚本的时候对传入的参数进行判断来决定执行哪一个命令。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">在 Github 上还有很多 Flexvolume 的示例，大家可以自行参考查阅。阿里云提供了一个 Flexvolume 的实现，有兴趣的可以参考一下。(https://github.com/AliyunContainerService/flexvolume)</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<h2 id="Lnjpo" style="padding:7px 0px;margin:0px;font-weight:700;font-size:24px;line-height:32px;">Flexvolume 的使用</h2>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">下图给出了一个 Flexvolume 类型的 PV 模板。它和其它模板实际上没有什么区别，只不过类型被定义为 flexVolume 类型。flexVolume 中定义了 driver、fsType、options。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<ul style="margin:0px;padding-left:23px;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;"><li>driver 定义的是我们实现的某种驱动，比如图中的是 aliclound/disk，也可以是 aliclound/nas 等；</li>
+<li>fsType 定义的是文件系统类型，比如 "ext4"；</li>
+<li>options 包含了一些具体的参数，比如定义云盘的 id 等。</li>
+</ul><p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">我们也可以像其它类型一样，通过 selector 中的 matchLabels 定义一些筛选条件。同样也可以定义一些相应的调度信息，比如定义 zone 为 cn-shenzhen-a。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/9da6f17e035cae08daa7.png" style="border:none;width:468px;height:230px;"/></span></p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;">下面是一个具体的运行结果。在 Pod 内部我们挂载了一个云盘，其所在本地设备为 /dev/vdb。通过 mount | grep disk 我们可以看到相应的挂载目录，首先它会将 /dev/vdb 挂载到 GlobalPath 中；其次会将 GlobalPath 通过 mount 命令挂载到一个 Pod 所定义的本地子目录中去；最后会把该本地子目录映射到 /data 上。</p>
+<p style="color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"><span><img alt="" class="image lake-drag-image" src="../assets/00b09f3a23fcfbddce32.png" style="border:none;width:681px;height:110px;"/></span></p>
+<p style="text-align:center;color:rgb(38,38,38);line-height:1.74;letter-spacing:.05em;margin:0px;"> </p></body></html>
